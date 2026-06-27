@@ -81,3 +81,61 @@ def sample_counts(request):
 
     )
     return Response(list(data))
+from .services.static_prediction_service import StaticPredictionService
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def predict_static(request):
+    image = request.FILES.get("image")
+
+    if not image:
+        return Response(
+            {
+                "success": False,
+                "error": "image is required"
+            },
+            status=400
+        )
+
+    try:
+        service = StaticPredictionService()
+        result = service.predict_from_image(image)
+
+        if not result.get("success"):
+            return Response(
+                {
+                    "success": False,
+                    "error": result.get("error", "Prediction failed"),
+                    "gesture": None,
+                    "confidence": 0.0,
+                    "confidence_percent": 0.0,
+                    "landmark_count": 0
+                },
+                status=400
+            )
+
+        return Response({
+            "success": True,
+            "gesture": result.get("gesture"),
+            "confidence": round(result.get("confidence", 0.0), 4),
+            "confidence_percent": round(result.get("confidence_percent", 0.0), 2),
+            "landmark_count": result.get("landmark_count", 0)
+        })
+
+    except FileNotFoundError as e:
+        return Response(
+            {
+                "success": False,
+                "error": str(e)
+            },
+            status=500
+        )
+
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "error": str(e)
+            },
+            status=500
+        )
