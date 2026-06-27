@@ -20,8 +20,12 @@ class DatasetSample(models.Model):
     landmark=models.JSONField()
     image=models.ImageField(upload_to="samples/",null=True,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
         return f"{self.gesture.name} sample"
+
+
+
 class PredictionHistory(models.Model):
     predicted_gesture = models.CharField(max_length=100)
     confidence = models.FloatField()
