@@ -125,4 +125,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 import os
 MEDIA_URL = '/media/'
 Media_ROOT = os.environ.get('MEDIA_URL')
-STATIC_URL= "/static"
+STATIC_URL= "/static/"
