@@ -1,0 +1,11 @@
+# PyCharm specific
+.idea/
+
+# Python specific
+__pycache__/
+*.pyc
+venv/
+env/
+
+# OS generated files
+.DS_Store
