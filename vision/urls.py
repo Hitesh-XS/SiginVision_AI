@@ -1,8 +1,7 @@
 from django.urls import path
 from . import views
 
-
 urlpatterns = [
-    path("gesture/",views.gesture_list),
-    path("collect-sample",views.collect_sample),
+    path("gestures/", views.gesture_list, name="gesture_list"),
+    path("collect-sample/", views.collect_sample, name="collect_sample"),
 ]
