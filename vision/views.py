@@ -1,3 +1,64 @@
 from django.shortcuts import render
 
 # Create your views here.
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import Gesture,DatasetSample
+from .serializers import GestureSerializer
+from .services.hand_landmark_service import HandLandmarkService
+
+
+@api_view(['GET'])
+def gesture_list(request):
+    gestures=Gesture.objects.all()
+    serializer=GestureSerializer(gestures,many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def collect_sample(request):
+    gesture_id=request.data.get('gesture_id')
+    image=request.FILES.get("image")
+    if not gesture_id:
+       return Response(
+           {"error":"gesture_id"},
+           status=status.HTTP_400_BAD_REQUEST
+       )
+    if not image:
+        return Response(
+            {"error":"image is required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        gesture=Gesture.objects.get(id=gesture_id)
+    except Gesture.DoesNotExist:
+        return Response(
+            {"error":"gesture does not exist"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    service=HandLandmarkService()
+    landmarks=service.extract_landmarks(image)
+
+    if landmarks is None:
+        return Response(
+            {"error":"No landmarks detected"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    image.seek(0)
+
+    sample=DatasetSample.objects.create(gesture=gesture,landmarks=landmarks,image=image)
+
+    return Response({
+        "message":"Sample collected successfully",
+        "sample_id":sample.id,
+        "gesture_id":gesture.name,
+        "landmarks_count":len(landmarks)
+
+
+    }
+    )
+
+
