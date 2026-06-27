@@ -17,7 +17,7 @@ def gesture_list(request):
     return Response(serializer.data)
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 def collect_sample(request):
     gesture_id=request.data.get('gesture_id')
     image=request.FILES.get("image")
@@ -39,26 +39,26 @@ def collect_sample(request):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    service=HandLandmarkService()
-    landmarks=service.extract_landmarks(image)
+    service = HandLandmarkService()
+    landmarks = service.extract_landmarks_from_image(image)
 
     if landmarks is None:
         return Response(
-            {"error":"No landmarks detected"},
-            status=status.HTTP_404_NOT_FOUND
+            {"error": "No landmarks detected"},
+            status=400
         )
+
     image.seek(0)
 
-    sample=DatasetSample.objects.create(gesture=gesture,landmarks=landmarks,image=image)
-
-    return Response({
-        "message":"Sample collected successfully",
-        "sample_id":sample.id,
-        "gesture_id":gesture.name,
-        "landmarks_count":len(landmarks)
-
-
-    }
+    sample = DatasetSample.objects.create(
+        gesture=gesture,
+        landmark=landmarks,
+        image=image
     )
 
-
+    return Response({
+        "message": "Sample collected successfully",
+        "sample_id": sample.id,
+        "gesture": gesture.name,
+        "landmark_count": len(landmarks)
+    })
