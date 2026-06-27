@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SignVision AI - Dataset Collector</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #a78bfa;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+        }
+
+        video, canvas {
+            width: 100%;
+            border-radius: 14px;
+            background: black;
+        }
+
+        select, button, input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            background: #7c3aed;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #6d28d9;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .success {
+            background: #16a34a;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #020617;
+        }
+
+        .gesture-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .count {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #facc15;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>SignVision AI - Dataset Collector</h1>
+
+    <div class="layout">
+        <div class="card">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+
+            <button onclick="startCamera()">Start Camera</button>
+            <button onclick="captureSample()" class="success">Capture Sample</button>
+            <button onclick="toggleAutoCollect()">Start Auto Collect</button>
+
+            <div class="status" id="status">
+                Status: Waiting...
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Collection Control</h2>
+
+            <label>Select Gesture</label>
+            <select id="gestureSelect"></select>
+
+            <label>Auto Collect Delay milliseconds</label>
+            <input id="delayInput" type="number" value="700">
+
+            <p class="warning">
+                Target: collect 150–300 samples per gesture.
+            </p>
+
+            <h2>Sample Counts</h2>
+            <div id="counts"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let video = document.getElementById("video");
+    let canvas = document.getElementById("canvas");
+    let statusBox = document.getElementById("status");
+    let gestureSelect = document.getElementById("gestureSelect");
+    let autoCollect = false;
+    let autoTimer = null;
+
+    function getCSRFToken() {
+        let cookieValue = null;
+        let cookies = document.cookie.split(";");
+
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+
+            if (cookie.startsWith("csrftoken=")) {
+                cookieValue = cookie.substring("csrftoken=".length);
+                break;
+            }
+        }
+
+        return cookieValue;
+    }
+
+    async function loadGestures() {
+        let response = await fetch("/api/vision/gestures/");
+        let gestures = await response.json();
+
+        gestureSelect.innerHTML = "";
+
+        gestures.forEach(g => {
+            let option = document.createElement("option");
+            option.value = g.id;
+            option.textContent = g.name;
+            gestureSelect.appendChild(option);
+        });
+    }
+
+    async function loadCounts() {
+        let response = await fetch("/api/vision/sample-counts/");
+        let data = await response.json();
+
+        let html = "";
+
+        data.forEach(item => {
+            html += `
+                <div class="gesture-row">
+                    <span>${item.name}</span>
+                    <span class="count">${item.sample_count}</span>
+                </div>
+            `;
+        });
+
+        document.getElementById("counts").innerHTML = html;
+    }
+
+    async function startCamera() {
+        try {
+            let stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+
+            video.srcObject = stream;
+            statusBox.innerHTML = "Status: Camera started";
+        } catch (error) {
+            statusBox.innerHTML = "Status: Camera error - " + error;
+        }
+    }
+
+    async function captureSample() {
+        let gestureId = gestureSelect.value;
+
+        if (!gestureId) {
+            statusBox.innerHTML = "Status: Select gesture first";
+            return;
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        let ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async function(blob) {
+            let formData = new FormData();
+            formData.append("gesture_id", gestureId);
+            formData.append("image", blob, "frame.jpg");
+
+            try {
+                let response = await fetch("/api/vision/collect-sample/", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCSRFToken()
+                    },
+                    body: formData
+                });
+
+                let data = await response.json();
+
+                if (response.ok) {
+                    statusBox.innerHTML =
+                        `Status: Saved ${data.gesture}, sample id ${data.sample_id}, landmarks ${data.landmark_count}`;
+                    await loadCounts();
+                } else {
+                    statusBox.innerHTML = "Status: " + data.error;
+                }
+            } catch (error) {
+                statusBox.innerHTML = "Status: Request failed - " + error;
+            }
+        }, "image/jpeg", 0.95);
+    }
+
+    function toggleAutoCollect() {
+        autoCollect = !autoCollect;
+
+        if (autoCollect) {
+            let delay = parseInt(document.getElementById("delayInput").value || "700");
+
+            autoTimer = setInterval(() => {
+                captureSample();
+            }, delay);
+
+            statusBox.innerHTML = "Status: Auto collect started";
+        } else {
+            clearInterval(autoTimer);
+            statusBox.innerHTML = "Status: Auto collect stopped";
+        }
+    }
+
+    loadGestures();
+    loadCounts();
+</script>
+
+</body>
+</html>

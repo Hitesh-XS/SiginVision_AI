@@ -1,9 +1,10 @@
 django
 djangorestframework
-tensorflow
-mediapipe<0.10.21
+mediapipe==0.10.21
 opencv-python
-numpy
+numpy==1.26.4
 pandas
 scikit-learn
 pillow
+protobuf==4.25.3
+tensorflow==2.15.1

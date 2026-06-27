@@ -9,6 +9,10 @@ from .models import Gesture,DatasetSample
 from .serializers import GestureSerializer
 from .services.hand_landmark_service import HandLandmarkService
 
+from django.shortcuts import render
+from django.db.models import Count
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 
 @api_view(['GET'])
 def gesture_list(request):
@@ -18,6 +22,7 @@ def gesture_list(request):
 
 
 @api_view(['POST'])
+@parser_classes([MultiPartParser,FormParser])
 def collect_sample(request):
     gesture_id=request.data.get('gesture_id')
     image=request.FILES.get("image")
@@ -62,3 +67,17 @@ def collect_sample(request):
         "gesture": gesture.name,
         "landmark_count": len(landmarks)
     })
+
+def collector_page(request):
+    return render(request,'vision/collector.html')
+
+@api_view(["GET"])
+def sample_counts(request):
+    data=(
+        Gesture.objects
+        .annotate(sample_count=Count("datasetsample"))
+        .values("id","name","gesture_type","sample_count")
+        .order_by("name")
+
+    )
+    return Response(list(data))
