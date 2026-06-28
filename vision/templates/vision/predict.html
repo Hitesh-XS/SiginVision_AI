@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SignVision AI - Live Prediction</title>
+    <style>
+        body {
+            margin: 0;
+            background: #020617;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1050px;
+            margin: auto;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #a78bfa;
+            margin-bottom: 20px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+        }
+
+        video {
+            width: 100%;
+            border-radius: 16px;
+            background: black;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 12px;
+            border: none;
+            border-radius: 12px;
+            background: #7c3aed;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #6d28d9;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .success {
+            background: #16a34a;
+        }
+
+        .result-box {
+            text-align: center;
+            background: #020617;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .gesture {
+            font-size: 76px;
+            font-weight: bold;
+            color: #22c55e;
+        }
+
+        .unknown {
+            color: #f97316;
+        }
+
+        .confidence {
+            font-size: 24px;
+            color: #facc15;
+            margin-top: 10px;
+        }
+
+        .small {
+            color: #94a3b8;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        .status {
+            background: #020617;
+            padding: 14px;
+            border-radius: 12px;
+            margin-top: 16px;
+            color: #cbd5e1;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #334155;
+            padding: 10px 0;
+        }
+
+        .label {
+            color: #94a3b8;
+        }
+
+        .value {
+            font-weight: bold;
+        }
+
+        @media (max-width: 800px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>SignVision AI - Live Static Gesture Prediction</h1>
+
+    <div class="layout">
+        <div class="card">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+
+            <button onclick="startCamera()">Start Camera</button>
+            <button onclick="predictOnce()" class="success">Predict Once</button>
+            <button onclick="toggleLivePrediction()" id="liveBtn">Start Live Prediction</button>
+
+            <div class="status" id="status">
+                Status: Waiting...
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="result-box">
+                <div>Prediction</div>
+                <div class="gesture" id="gesture">-</div>
+                <div class="confidence" id="confidence">Confidence: -</div>
+                <div class="small" id="rawGesture">Raw: -</div>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Threshold</span>
+                <span class="value" id="threshold">70%</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Landmarks</span>
+                <span class="value" id="landmarkCount">-</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Mode</span>
+                <span class="value">Static ASL</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Classes</span>
+                <span class="value">A/B/C/D/W/Z</span>
+            </div>
+
+            <p class="small">
+                Show only the gestures your model was trained on. If confidence is low, result becomes Unknown.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let video = document.getElementById("video");
+    let canvas = document.getElementById("canvas");
+
+    let gestureBox = document.getElementById("gesture");
+    let confidenceBox = document.getElementById("confidence");
+    let rawGestureBox = document.getElementById("rawGesture");
+    let statusBox = document.getElementById("status");
+    let landmarkCountBox = document.getElementById("landmarkCount");
+    let thresholdBox = document.getElementById("threshold");
+    let liveBtn = document.getElementById("liveBtn");
+
+    let live = false;
+    let liveTimer = null;
+    let isPredicting = false;
+
+    function getCSRFToken() {
+        let cookieValue = null;
+        let cookies = document.cookie.split(";");
+
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+
+            if (cookie.startsWith("csrftoken=")) {
+                cookieValue = cookie.substring("csrftoken=".length);
+                break;
+            }
+        }
+
+        return cookieValue;
+    }
+
+    async function startCamera() {
+        try {
+            let stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: 640,
+                    height: 480
+                },
+                audio: false
+            });
+
+            video.srcObject = stream;
+            statusBox.innerHTML = "Status: Camera started";
+        } catch (error) {
+            statusBox.innerHTML = "Status: Camera error - " + error;
+        }
+    }
+
+    async function predictOnce() {
+        if (isPredicting) {
+            return;
+        }
+
+        if (!video.videoWidth) {
+            statusBox.innerHTML = "Status: Start camera first";
+            return;
+        }
+
+        isPredicting = true;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        let ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async function(blob) {
+            let formData = new FormData();
+            formData.append("image", blob, "frame.jpg");
+
+            try {
+                let response = await fetch("/api/vision/predict-static/", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCSRFToken()
+                    },
+                    body: formData
+                });
+
+                let data = await response.json();
+
+                if (response.ok && data.success) {
+                    gestureBox.innerHTML = data.gesture;
+                    confidenceBox.innerHTML = "Confidence: " + data.confidence_percent + "%";
+                    rawGestureBox.innerHTML = "Raw: " + data.raw_gesture;
+                    landmarkCountBox.innerHTML = data.landmark_count;
+                    thresholdBox.innerHTML = data.threshold_percent + "%";
+
+                    if (data.gesture === "Unknown") {
+                        gestureBox.classList.add("unknown");
+                    } else {
+                        gestureBox.classList.remove("unknown");
+                    }
+
+                    statusBox.innerHTML = "Status: Prediction successful";
+                } else {
+                    statusBox.innerHTML = "Status: " + data.error;
+                    gestureBox.innerHTML = "-";
+                    confidenceBox.innerHTML = "Confidence: -";
+                    rawGestureBox.innerHTML = "Raw: -";
+                    landmarkCountBox.innerHTML = "-";
+                }
+            } catch (error) {
+                statusBox.innerHTML = "Status: Request failed - " + error;
+            }
+
+            isPredicting = false;
+        }, "image/jpeg", 0.9);
+    }
+
+    function toggleLivePrediction() {
+        live = !live;
+
+        if (live) {
+            liveTimer = setInterval(() => {
+                predictOnce();
+            }, 700);
+
+            liveBtn.innerHTML = "Stop Live Prediction";
+            liveBtn.classList.add("danger");
+            statusBox.innerHTML = "Status: Live prediction started";
+        } else {
+            clearInterval(liveTimer);
+
+            liveBtn.innerHTML = "Start Live Prediction";
+            liveBtn.classList.remove("danger");
+            statusBox.innerHTML = "Status: Live prediction stopped";
+        }
+    }
+</script>
+
+</body>
+</html>

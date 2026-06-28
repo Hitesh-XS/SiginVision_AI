@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SignVision AI - Dataset Collector</title>
+    <title>SignVision AI - Video Sample Collector</title>
     <style>
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: #0f172a;
+            background: #020617;
             color: white;
         }
 
         .container {
-            max-width: 1100px;
+            max-width: 1150px;
             margin: auto;
             padding: 30px;
         }
@@ -28,15 +28,19 @@
 
         .card {
             background: #1e293b;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.35);
         }
 
-        video, canvas {
+        video {
             width: 100%;
-            border-radius: 14px;
+            border-radius: 16px;
             background: black;
+        }
+
+        canvas {
+            display: none;
         }
 
         select, button, input {
@@ -46,6 +50,7 @@
             border: none;
             margin-top: 10px;
             font-size: 16px;
+            box-sizing: border-box;
         }
 
         button {
@@ -59,25 +64,42 @@
             background: #6d28d9;
         }
 
-        .danger {
-            background: #dc2626;
-        }
-
         .success {
             background: #16a34a;
         }
 
+        .danger {
+            background: #dc2626;
+        }
+
         .status {
             margin-top: 15px;
-            padding: 12px;
-            border-radius: 10px;
+            padding: 14px;
+            border-radius: 12px;
             background: #020617;
+            color: #cbd5e1;
+        }
+
+        .progress-wrap {
+            width: 100%;
+            height: 18px;
+            background: #334155;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #22c55e;
+            transition: width 0.2s;
         }
 
         .gesture-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px;
+            padding: 9px;
             border-bottom: 1px solid #334155;
         }
 
@@ -86,24 +108,43 @@
             font-weight: bold;
         }
 
-        .warning {
-            color: #facc15;
+        .small {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        label {
+            display: block;
+            margin-top: 14px;
+            color: #c4b5fd;
+            font-weight: bold;
+        }
+
+        @media (max-width: 850px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>SignVision AI - Dataset Collector</h1>
+    <h1>SignVision AI - Custom Sign Dataset Collector</h1>
 
     <div class="layout">
         <div class="card">
             <video id="video" autoplay playsinline></video>
-            <canvas id="canvas" style="display:none;"></canvas>
+            <canvas id="canvas"></canvas>
 
             <button onclick="startCamera()">Start Camera</button>
-            <button onclick="captureSample()" class="success">Capture Sample</button>
-            <button onclick="toggleAutoCollect()">Start Auto Collect</button>
+            <button onclick="captureSingleSample()" class="success">Capture One Sample</button>
+            <button onclick="startTimedCollection()" id="collectBtn">Start Timed Collection</button>
+            <button onclick="stopCollection()" class="danger">Stop Collection</button>
+
+            <div class="progress-wrap">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
 
             <div class="status" id="status">
                 Status: Waiting...
@@ -111,16 +152,23 @@
         </div>
 
         <div class="card">
-            <h2>Collection Control</h2>
+            <h2>Gesture Setup</h2>
+
+            <label>Create Custom Gesture</label>
+            <input id="newGestureName" type="text" placeholder="Example: My_A_Sign">
+            <button onclick="createGesture()">Create Gesture</button>
 
             <label>Select Gesture</label>
             <select id="gestureSelect"></select>
 
-            <label>Auto Collect Delay milliseconds</label>
-            <input id="delayInput" type="number" value="700">
+            <label>Duration seconds</label>
+            <input id="durationInput" type="number" value="10" min="1">
 
-            <p class="warning">
-                Target: collect 150–300 samples per gesture.
+            <label>Target samples</label>
+            <input id="sampleInput" type="number" value="100" min="1">
+
+            <p class="small">
+                Example: 10 seconds + 100 samples means 1 frame every 100ms.
             </p>
 
             <h2>Sample Counts</h2>
@@ -134,8 +182,9 @@
     let canvas = document.getElementById("canvas");
     let statusBox = document.getElementById("status");
     let gestureSelect = document.getElementById("gestureSelect");
-    let autoCollect = false;
-    let autoTimer = null;
+    let progressBar = document.getElementById("progressBar");
+
+    let collecting = false;
 
     function getCSRFToken() {
         let cookieValue = null;
@@ -151,6 +200,10 @@
         }
 
         return cookieValue;
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     async function loadGestures() {
@@ -185,10 +238,47 @@
         document.getElementById("counts").innerHTML = html;
     }
 
+    async function createGesture() {
+        let name = document.getElementById("newGestureName").value.trim();
+
+        if (!name) {
+            statusBox.innerHTML = "Status: Enter gesture name first";
+            return;
+        }
+
+        let formData = new FormData();
+        formData.append("name", name);
+        formData.append("gesture_type", "static");
+
+        let response = await fetch("/api/vision/create-gesture/", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: formData
+        });
+
+        let data = await response.json();
+
+        if (response.ok) {
+            statusBox.innerHTML = `Status: Gesture ready - ${data.name}`;
+            await loadGestures();
+            await loadCounts();
+
+            gestureSelect.value = data.id;
+            document.getElementById("newGestureName").value = "";
+        } else {
+            statusBox.innerHTML = "Status: " + data.error;
+        }
+    }
+
     async function startCamera() {
         try {
             let stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
+                video: {
+                    width: 640,
+                    height: 480
+                },
                 audio: false
             });
 
@@ -199,7 +289,52 @@
         }
     }
 
-    async function captureSample() {
+    function frameToBlob() {
+        return new Promise(resolve => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                resolve(blob);
+            }, "image/jpeg", 0.9);
+        });
+    }
+
+    async function sendFrameToServer(gestureId) {
+        let blob = await frameToBlob();
+
+        let formData = new FormData();
+        formData.append("gesture_id", gestureId);
+        formData.append("image", blob, "frame.jpg");
+
+        let response = await fetch("/api/vision/collect-sample/", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: formData
+        });
+
+        let data = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                error: data.error || "Failed"
+            };
+        }
+
+        return {
+            success: true,
+            sample_id: data.sample_id,
+            gesture: data.gesture
+        };
+    }
+
+    async function captureSingleSample() {
         let gestureId = gestureSelect.value;
 
         if (!gestureId) {
@@ -207,56 +342,89 @@
             return;
         }
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        if (!video.videoWidth) {
+            statusBox.innerHTML = "Status: Start camera first";
+            return;
+        }
 
-        let ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let result = await sendFrameToServer(gestureId);
 
-        canvas.toBlob(async function(blob) {
-            let formData = new FormData();
-            formData.append("gesture_id", gestureId);
-            formData.append("image", blob, "frame.jpg");
-
-            try {
-                let response = await fetch("/api/vision/collect-sample/", {
-                    method: "POST",
-                    headers: {
-                        "X-CSRFToken": getCSRFToken()
-                    },
-                    body: formData
-                });
-
-                let data = await response.json();
-
-                if (response.ok) {
-                    statusBox.innerHTML =
-                        `Status: Saved ${data.gesture}, sample id ${data.sample_id}, landmarks ${data.landmark_count}`;
-                    await loadCounts();
-                } else {
-                    statusBox.innerHTML = "Status: " + data.error;
-                }
-            } catch (error) {
-                statusBox.innerHTML = "Status: Request failed - " + error;
-            }
-        }, "image/jpeg", 0.95);
+        if (result.success) {
+            statusBox.innerHTML = `Status: Saved sample ${result.sample_id} for ${result.gesture}`;
+            await loadCounts();
+        } else {
+            statusBox.innerHTML = "Status: " + result.error;
+        }
     }
 
-    function toggleAutoCollect() {
-        autoCollect = !autoCollect;
+    async function startTimedCollection() {
+        let gestureId = gestureSelect.value;
 
-        if (autoCollect) {
-            let delay = parseInt(document.getElementById("delayInput").value || "700");
-
-            autoTimer = setInterval(() => {
-                captureSample();
-            }, delay);
-
-            statusBox.innerHTML = "Status: Auto collect started";
-        } else {
-            clearInterval(autoTimer);
-            statusBox.innerHTML = "Status: Auto collect stopped";
+        if (!gestureId) {
+            statusBox.innerHTML = "Status: Select gesture first";
+            return;
         }
+
+        if (!video.videoWidth) {
+            statusBox.innerHTML = "Status: Start camera first";
+            return;
+        }
+
+        let durationSeconds = parseInt(document.getElementById("durationInput").value || "10");
+        let targetSamples = parseInt(document.getElementById("sampleInput").value || "100");
+
+        if (durationSeconds <= 0 || targetSamples <= 0) {
+            statusBox.innerHTML = "Status: Duration and samples must be positive";
+            return;
+        }
+
+        let delay = Math.floor((durationSeconds * 1000) / targetSamples);
+
+        if (delay < 80) {
+            statusBox.innerHTML = "Status: Too many samples for this duration. Increase duration or reduce samples.";
+            return;
+        }
+
+        collecting = true;
+
+        let saved = 0;
+        let failed = 0;
+
+        progressBar.style.width = "0%";
+
+        for (let i = 1; i <= targetSamples; i++) {
+            if (!collecting) {
+                break;
+            }
+
+            let result = await sendFrameToServer(gestureId);
+
+            if (result.success) {
+                saved++;
+            } else {
+                failed++;
+            }
+
+            let percent = Math.round((i / targetSamples) * 100);
+            progressBar.style.width = percent + "%";
+
+            statusBox.innerHTML =
+                `Status: Collecting... ${i}/${targetSamples} | saved=${saved}, failed=${failed}`;
+
+            await sleep(delay);
+        }
+
+        collecting = false;
+
+        statusBox.innerHTML =
+            `Status: Collection complete | saved=${saved}, failed=${failed}`;
+
+        await loadCounts();
+    }
+
+    function stopCollection() {
+        collecting = false;
+        statusBox.innerHTML = "Status: Stopping collection...";
     }
 
     loadGestures();

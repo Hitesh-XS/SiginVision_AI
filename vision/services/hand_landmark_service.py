@@ -22,20 +22,41 @@ class HandLandmarkService:
         if image is None:
             return None
 
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return self.extract_landmarks_from_frame(image)
+
+    def extract_landmarks_from_frame(self, frame):
+        if frame is None:
+            return None
+
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result = self.hands.process(rgb_image)
 
         if not result.multi_hand_landmarks:
             return None
 
         hand_landmarks = result.multi_hand_landmarks[0]
+
         landmarks = []
 
         for landmark in hand_landmarks.landmark:
             landmarks.extend([
-                landmark.x,
-                landmark.y,
-                landmark.z
+                float(landmark.x),
+                float(landmark.y),
+                float(landmark.z)
             ])
 
         return landmarks
+
+    def draw_landmarks(self, frame):
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        result = self.hands.process(rgb_image)
+
+        if result.multi_hand_landmarks:
+            for hand_landmarks in result.multi_hand_landmarks:
+                mp.solutions.drawing_utils.draw_landmarks(
+                    frame,
+                    hand_landmarks,
+                    self.mp_hands.HAND_CONNECTIONS
+                )
+
+        return frame
