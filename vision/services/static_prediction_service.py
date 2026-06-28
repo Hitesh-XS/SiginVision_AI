@@ -33,35 +33,45 @@ class StaticPredictionService:
         self.hand_service = HandLandmarkService()
 
     def predict_from_image(self, image_file):
-        landmarks = self.hand_service.extract_landmarks_from_image(image_file)
+        hand_data = self.hand_service.extract_landmarks_with_quality_from_image(image_file) \
+            if hasattr(self.hand_service, "extract_landmarks_with_quality_from_image") \
+            else None
 
-        if landmarks is None:
+        if hand_data is None:
+            image_file.seek(0)
+            hand_data = self._extract_quality_from_image_file(image_file)
+
+        if not hand_data["success"]:
             return {
                 "success": False,
-                "error": "No hand landmarks detected",
+                "error": hand_data["reason"],
                 "gesture": None,
                 "confidence": 0.0,
                 "confidence_percent": 0.0,
                 "landmark_count": 0,
-                "top_predictions": []
+                "top_predictions": [],
+                "hand_quality": hand_data
             }
 
+        landmarks = hand_data["landmarks"]
         normalized = normalize_landmarks(landmarks)
         x = np.array([normalized], dtype=np.float32)
 
         predictions = StaticPredictionService.model.predict(x, verbose=0)[0]
 
-        class_index = int(np.argmax(predictions))
-        confidence = float(predictions[class_index])
-        confidence_percent = confidence * 100
+        top_indices = np.argsort(predictions)[::-1]
+        top1 = int(top_indices[0])
+        top2 = int(top_indices[1]) if len(top_indices) > 1 else top1
 
-        gesture = StaticPredictionService.label_map.get(str(class_index), "Unknown")
+        confidence = float(predictions[top1])
+        second_confidence = float(predictions[top2])
+        margin = confidence - second_confidence
 
-        top_indices = np.argsort(predictions)[::-1][:3]
+        gesture = StaticPredictionService.label_map.get(str(top1), "Unknown")
 
         top_predictions = []
 
-        for idx in top_indices:
+        for idx in top_indices[:3]:
             idx = int(idx)
             top_predictions.append({
                 "gesture": StaticPredictionService.label_map.get(str(idx), "Unknown"),
@@ -74,7 +84,21 @@ class StaticPredictionService:
             "error": None,
             "gesture": gesture,
             "confidence": confidence,
-            "confidence_percent": confidence_percent,
+            "confidence_percent": confidence * 100,
+            "second_confidence": second_confidence,
+            "margin": margin,
+            "margin_percent": margin * 100,
             "landmark_count": len(landmarks),
-            "top_predictions": top_predictions
+            "top_predictions": top_predictions,
+            "hand_quality": hand_data
         }
+
+    def _extract_quality_from_image_file(self, image_file):
+        import cv2
+        import numpy as np
+
+        file_bytes = image_file.read()
+        np_arr = np.frombuffer(file_bytes, np.uint8)
+        image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        return self.hand_service.extract_landmarks_with_quality(image)

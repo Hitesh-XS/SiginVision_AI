@@ -125,9 +125,13 @@ def predict_static(request):
             }, status=200)
 
         confidence = result.get("confidence", 0.0)
+        margin = result.get("margin", 0.0)
         raw_gesture = result.get("gesture")
 
-        if confidence < threshold:
+        confidence_threshold = 0.85
+        margin_threshold = 0.20
+
+        if confidence < confidence_threshold or margin < margin_threshold:
             final_gesture = "Unknown"
         else:
             final_gesture = raw_gesture
@@ -139,9 +143,13 @@ def predict_static(request):
             "raw_gesture": raw_gesture,
             "confidence": round(confidence, 4),
             "confidence_percent": round(confidence * 100, 2),
-            "threshold_percent": threshold * 100,
+            "margin": round(margin, 4),
+            "margin_percent": round(margin * 100, 2),
+            "threshold_percent": confidence_threshold * 100,
+            "margin_threshold_percent": margin_threshold * 100,
             "landmark_count": result.get("landmark_count", 0),
-            "top_predictions": result.get("top_predictions", [])
+            "top_predictions": result.get("top_predictions", []),
+            "hand_quality": result.get("hand_quality", {})
         })
 
     except Exception as e:
