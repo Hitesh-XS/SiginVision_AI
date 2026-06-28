@@ -9,4 +9,6 @@ urlpatterns = [
     path("collect-sample/", views.collect_sample, name="collect_sample"),
 
     path("predict-static/", views.predict_static, name="predict_static"),
+    path("predict-page/",views.predict_page, name="predict_page"),
+path("create-gesture/", views.create_gesture, name="create_gesture"),
 ]

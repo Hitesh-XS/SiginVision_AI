@@ -6,12 +6,11 @@
         "B",
         "C",
         "D",
-        "W",
-        "Z"
+        "W"
     ],
-    "total_samples": 1665,
-    "train_samples": 1332,
-    "test_samples": 333,
+    "total_samples": 1366,
+    "train_samples": 1092,
+    "test_samples": 274,
     "classification_report": {
         "A": {
             "precision": 1.0,
@@ -41,26 +40,20 @@
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 46.0
-        },
-        "Z": {
-            "precision": 1.0,
-            "recall": 1.0,
-            "f1-score": 1.0,
-            "support": 60.0
+            "support": 47.0
         },
         "accuracy": 1.0,
         "macro avg": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 333.0
+            "support": 274.0
         },
         "weighted avg": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 333.0
+            "support": 274.0
         }
     }
 }

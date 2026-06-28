@@ -42,7 +42,8 @@ class StaticPredictionService:
                 "gesture": None,
                 "confidence": 0.0,
                 "confidence_percent": 0.0,
-                "landmark_count": 0
+                "landmark_count": 0,
+                "top_predictions": []
             }
 
         normalized = normalize_landmarks(landmarks)
@@ -56,11 +57,24 @@ class StaticPredictionService:
 
         gesture = StaticPredictionService.label_map.get(str(class_index), "Unknown")
 
+        top_indices = np.argsort(predictions)[::-1][:3]
+
+        top_predictions = []
+
+        for idx in top_indices:
+            idx = int(idx)
+            top_predictions.append({
+                "gesture": StaticPredictionService.label_map.get(str(idx), "Unknown"),
+                "confidence": round(float(predictions[idx]), 4),
+                "confidence_percent": round(float(predictions[idx]) * 100, 2)
+            })
+
         return {
             "success": True,
             "error": None,
             "gesture": gesture,
             "confidence": confidence,
             "confidence_percent": confidence_percent,
-            "landmark_count": len(landmarks)
+            "landmark_count": len(landmarks),
+            "top_predictions": top_predictions
         }

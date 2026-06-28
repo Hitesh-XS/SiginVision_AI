@@ -83,6 +83,8 @@ def sample_counts(request):
     return Response(list(data))
 from .services.static_prediction_service import StaticPredictionService
 
+
+
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def predict_static(request):
@@ -107,6 +109,7 @@ def predict_static(request):
                     "success": False,
                     "error": result.get("error", "Prediction failed"),
                     "gesture": None,
+                    "raw_gesture": None,
                     "confidence": 0.0,
                     "confidence_percent": 0.0,
                     "landmark_count": 0
@@ -114,22 +117,26 @@ def predict_static(request):
                 status=400
             )
 
+        confidence = result.get("confidence", 0.0)
+        raw_gesture = result.get("gesture")
+
+        threshold = 0.70
+
+        if confidence < threshold:
+            final_gesture = "Unknown"
+        else:
+            final_gesture = raw_gesture
+
         return Response({
             "success": True,
-            "gesture": result.get("gesture"),
-            "confidence": round(result.get("confidence", 0.0), 4),
-            "confidence_percent": round(result.get("confidence_percent", 0.0), 2),
-            "landmark_count": result.get("landmark_count", 0)
+            "gesture": final_gesture,
+            "raw_gesture": raw_gesture,
+            "confidence": round(confidence, 4),
+            "confidence_percent": round(confidence * 100, 2),
+            "threshold_percent": threshold * 100,
+            "landmark_count": result.get("landmark_count", 0),
+            "top_predictions": result.get("top_predictions", [])
         })
-
-    except FileNotFoundError as e:
-        return Response(
-            {
-                "success": False,
-                "error": str(e)
-            },
-            status=500
-        )
 
     except Exception as e:
         return Response(
@@ -139,3 +146,31 @@ def predict_static(request):
             },
             status=500
         )
+
+def predict_page(request):
+    return render(request, "vision/predict.html")
+
+@api_view(["POST"])
+def create_gesture(request):
+    name = request.data.get("name")
+    gesture_type = request.data.get("gesture_type", "static")
+
+    if not name:
+        return Response(
+            {"error": "gesture name is required"},
+            status=400
+        )
+
+    name = name.strip()
+
+    gesture, created = Gesture.objects.get_or_create(
+        name=name,
+        defaults={"gesture_type": gesture_type}
+    )
+
+    return Response({
+        "id": gesture.id,
+        "name": gesture.name,
+        "gesture_type": gesture.gesture_type,
+        "created": created
+    })
