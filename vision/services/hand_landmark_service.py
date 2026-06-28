@@ -10,8 +10,8 @@ class HandLandmarkService:
             static_image_mode=True,
             max_num_hands=1,
             model_complexity=1,
-            min_detection_confidence=0.75,
-            min_tracking_confidence=0.75
+            min_detection_confidence=0.50,
+            min_tracking_confidence=0.50
         )
 
     def extract_landmarks_from_image(self, image_file):
@@ -32,12 +32,28 @@ class HandLandmarkService:
 
         return data["landmarks"]
 
+    def extract_landmarks_with_quality_from_image(self, image_file):
+        file_bytes = image_file.read()
+        np_arr = np.frombuffer(file_bytes, np.uint8)
+        image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        if image is None:
+            return {
+                "success": False,
+                "reason": "invalid image",
+                "landmarks": None,
+                "box_area": 0.0
+            }
+
+        return self.extract_landmarks_with_quality(image)
+
     def extract_landmarks_with_quality(self, frame):
         if frame is None:
             return {
                 "success": False,
                 "reason": "empty frame",
-                "landmarks": None
+                "landmarks": None,
+                "box_area": 0.0
             }
 
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -47,47 +63,26 @@ class HandLandmarkService:
             return {
                 "success": False,
                 "reason": "no hand detected",
-                "landmarks": None
+                "landmarks": None,
+                "box_area": 0.0
             }
 
         hand_landmarks = result.multi_hand_landmarks[0]
 
-        handedness_score = 0.0
-
-        if result.multi_handedness:
-            handedness_score = float(result.multi_handedness[0].classification[0].score)
-
         xs = [lm.x for lm in hand_landmarks.landmark]
         ys = [lm.y for lm in hand_landmarks.landmark]
 
-        min_x = min(xs)
-        max_x = max(xs)
-        min_y = min(ys)
-        max_y = max(ys)
-
-        box_width = max_x - min_x
-        box_height = max_y - min_y
+        box_width = max(xs) - min(xs)
+        box_height = max(ys) - min(ys)
         box_area = box_width * box_height
 
-        if handedness_score < 0.85:
+        # Only reject extremely tiny fake detections
+        if box_area < 0.003:
             return {
                 "success": False,
-                "reason": f"weak handedness score: {handedness_score:.2f}",
-                "landmarks": None
-            }
-
-        if box_area < 0.015:
-            return {
-                "success": False,
-                "reason": f"hand too small or false detection: {box_area:.4f}",
-                "landmarks": None
-            }
-
-        if box_area > 0.80:
-            return {
-                "success": False,
-                "reason": f"invalid hand area: {box_area:.4f}",
-                "landmarks": None
+                "reason": f"hand too small: {box_area:.4f}",
+                "landmarks": None,
+                "box_area": box_area
             }
 
         landmarks = []
@@ -103,7 +98,6 @@ class HandLandmarkService:
             "success": True,
             "reason": "valid hand",
             "landmarks": landmarks,
-            "handedness_score": handedness_score,
             "box_area": box_area
         }
 
@@ -120,17 +114,3 @@ class HandLandmarkService:
                 )
 
         return frame
-
-    def extract_landmarks_with_quality_from_image(self, image_file):
-        file_bytes = image_file.read()
-        np_arr = np.frombuffer(file_bytes, np.uint8)
-        image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-        if image is None:
-            return {
-                "success": False,
-                "reason": "invalid image",
-                "landmarks": None
-            }
-
-        return self.extract_landmarks_with_quality(image)
