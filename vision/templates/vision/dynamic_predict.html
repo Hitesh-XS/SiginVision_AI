@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SignVision AI - Dynamic Prediction</title>
+    <style>
+        body {
+            margin: 0;
+            background: #020617;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #a78bfa;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.35);
+        }
+
+        video {
+            width: 100%;
+            border-radius: 16px;
+            background: black;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 12px;
+            border: none;
+            border-radius: 12px;
+            background: #7c3aed;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #6d28d9;
+        }
+
+        .success {
+            background: #16a34a;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .result {
+            text-align: center;
+            background: #020617;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .gesture {
+            font-size: 54px;
+            font-weight: bold;
+            color: #22c55e;
+            word-break: break-word;
+        }
+
+        .confidence {
+            font-size: 22px;
+            color: #facc15;
+            margin-top: 10px;
+        }
+
+        .status {
+            background: #020617;
+            padding: 14px;
+            border-radius: 12px;
+            margin-top: 16px;
+            color: #cbd5e1;
+        }
+
+        .bar-wrap {
+            width: 100%;
+            height: 18px;
+            background: #334155;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 14px;
+        }
+
+        .bar {
+            height: 100%;
+            width: 0%;
+            background: #22c55e;
+            transition: width 0.15s;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #334155;
+            padding: 10px 0;
+        }
+
+        .label {
+            color: #94a3b8;
+        }
+
+        .value {
+            font-weight: bold;
+        }
+
+        .small {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .top-box {
+            margin-top: 14px;
+            background: #020617;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .top-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        @media (max-width: 850px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>SignVision AI - Dynamic Sign Prediction</h1>
+
+    <div class="layout">
+        <div class="card">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+
+            <button onclick="startCamera()">Start Camera</button>
+            <button onclick="recordDynamicSign()" class="success" id="recordBtn">Record Dynamic Sign</button>
+
+            <div class="bar-wrap">
+                <div class="bar" id="progressBar"></div>
+            </div>
+
+            <div class="status" id="status">
+                Status: Waiting...
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="result">
+                <div>Dynamic Prediction</div>
+                <div class="gesture" id="gesture">-</div>
+                <div class="confidence" id="confidence">Confidence: -</div>
+                <div class="small" id="rawGesture">Raw: -</div>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Valid Frames</span>
+                <span class="value" id="validFrames">-</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Recording</span>
+                <span class="value">30 frames / 2 sec</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Mode</span>
+                <span class="value">Dynamic LSTM</span>
+            </div>
+
+            <div class="top-box">
+                <h3>Top Predictions</h3>
+                <div id="topPredictions">-</div>
+            </div>
+
+            <p class="small">
+                Click record, perform the full sign once during the 2-second recording window.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let video = document.getElementById("video");
+    let canvas = document.getElementById("canvas");
+    let statusBox = document.getElementById("status");
+    let progressBar = document.getElementById("progressBar");
+    let gestureBox = document.getElementById("gesture");
+    let confidenceBox = document.getElementById("confidence");
+    let rawGestureBox = document.getElementById("rawGesture");
+    let validFramesBox = document.getElementById("validFrames");
+    let topPredictionsBox = document.getElementById("topPredictions");
+    let recordBtn = document.getElementById("recordBtn");
+
+    let isRecording = false;
+
+    function getCSRFToken() {
+        let cookieValue = null;
+        let cookies = document.cookie.split(";");
+
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+
+            if (cookie.startsWith("csrftoken=")) {
+                cookieValue = cookie.substring("csrftoken=".length);
+                break;
+            }
+        }
+
+        return cookieValue;
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function startCamera() {
+        try {
+            let stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: 640,
+                    height: 480
+                },
+                audio: false
+            });
+
+            video.srcObject = stream;
+            statusBox.innerHTML = "Status: Camera started";
+        } catch (error) {
+            statusBox.innerHTML = "Status: Camera error - " + error;
+        }
+    }
+
+    function captureBlob() {
+        return new Promise(resolve => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                resolve(blob);
+            }, "image/jpeg", 0.85);
+        });
+    }
+
+    async function recordDynamicSign() {
+        if (isRecording) {
+            return;
+        }
+
+        if (!video.videoWidth) {
+            statusBox.innerHTML = "Status: Start camera first";
+            return;
+        }
+
+        isRecording = true;
+        recordBtn.innerHTML = "Recording...";
+        recordBtn.classList.add("danger");
+
+        let frameCount = 30;
+        let durationMs = 2000;
+        let delay = durationMs / frameCount;
+
+        let blobs = [];
+
+        progressBar.style.width = "0%";
+        statusBox.innerHTML = "Status: Get ready...";
+
+        await sleep(500);
+
+        for (let i = 0; i < frameCount; i++) {
+            let blob = await captureBlob();
+            blobs.push(blob);
+
+            let percent = Math.round(((i + 1) / frameCount) * 100);
+            progressBar.style.width = percent + "%";
+            statusBox.innerHTML = `Status: Recording frame ${i + 1}/${frameCount}`;
+
+            await sleep(delay);
+        }
+
+        statusBox.innerHTML = "Status: Sending frames to backend...";
+
+        let formData = new FormData();
+
+        for (let i = 0; i < blobs.length; i++) {
+            formData.append("frames", blobs[i], `frame_${i}.jpg`);
+        }
+
+        try {
+            let response = await fetch("/api/vision/predict-dynamic/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: formData
+            });
+
+            let data = await response.json();
+
+            if (response.ok && data.success) {
+                gestureBox.innerHTML = data.gesture;
+                confidenceBox.innerHTML = "Confidence: " + data.confidence_percent + "%";
+                rawGestureBox.innerHTML = "Raw: " + data.raw_gesture;
+                validFramesBox.innerHTML = data.valid_frames;
+
+                let html = "";
+
+                data.top_predictions.forEach(item => {
+                    html += `
+                        <div class="top-item">
+                            <span>${item.gesture}</span>
+                            <span>${item.confidence_percent}%</span>
+                        </div>
+                    `;
+                });
+
+                topPredictionsBox.innerHTML = html || "-";
+
+                statusBox.innerHTML = "Status: Dynamic prediction successful";
+            } else {
+                gestureBox.innerHTML = "-";
+                confidenceBox.innerHTML = "Confidence: -";
+                rawGestureBox.innerHTML = "Raw: -";
+                validFramesBox.innerHTML = data.valid_frames || "-";
+                topPredictionsBox.innerHTML = "-";
+                statusBox.innerHTML = "Status: " + data.error;
+            }
+        } catch (error) {
+            statusBox.innerHTML = "Status: Request failed - " + error;
+        }
+
+        isRecording = false;
+        recordBtn.innerHTML = "Record Dynamic Sign";
+        recordBtn.classList.remove("danger");
+    }
+</script>
+
+</body>
+</html>

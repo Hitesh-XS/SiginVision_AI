@@ -99,3 +99,41 @@ class StaticPredictionService:
         image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
         return self.hand_service.extract_landmarks_with_quality(image)
+
+    def normalize_landmark_sequence(sequence):
+        normalized_sequence = []
+
+        if not sequence:
+            return normalized_sequence
+
+        first_frame = sequence[0]
+        base_x = float(first_frame[0])
+        base_y = float(first_frame[1])
+        base_z = float(first_frame[2])
+
+        all_values = []
+
+        for frame in sequence:
+            current_frame = []
+
+            for i in range(0, len(frame), 3):
+                x = float(frame[i]) - base_x
+                y = float(frame[i + 1]) - base_y
+                z = float(frame[i + 2]) - base_z
+
+                current_frame.extend([x, y, z])
+                all_values.extend([x, y, z])
+
+            normalized_sequence.append(current_frame)
+
+        max_value = max(abs(v) for v in all_values) if all_values else 0
+
+        if max_value == 0:
+            return normalized_sequence
+
+        final_sequence = []
+
+        for frame in normalized_sequence:
+            final_sequence.append([v / max_value for v in frame])
+
+        return final_sequence
