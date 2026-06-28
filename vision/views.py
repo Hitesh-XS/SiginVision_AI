@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import Gesture,DatasetSample
+from .models import Gesture, DatasetSample, DynamicDatasetSample
 from .serializers import GestureSerializer
 from .services.hand_landmark_service import HandLandmarkService
 
@@ -193,3 +193,82 @@ def create_gesture(request):
         "gesture_type": gesture.gesture_type,
         "created": created
     })
+
+from .services.dynamic_prediction_service import DynamicPredictionService
+def dynamic_predict_page(request):
+    return render(request, "vision/dynamic_predict.html")
+
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def predict_dynamic(request):
+    image_files = request.FILES.getlist("frames")
+
+    if not image_files:
+        return Response({
+            "success": False,
+            "error": "frames are required"
+        }, status=400)
+
+    try:
+        service = DynamicPredictionService()
+        result = service.predict_from_image_files(image_files, frame_count=30)
+
+        if not result.get("success"):
+            return Response({
+                "success": False,
+                "error": result.get("error", "Dynamic prediction failed"),
+                "gesture": None,
+                "confidence": 0.0,
+                "confidence_percent": 0.0,
+                "valid_frames": result.get("valid_frames", 0),
+                "top_predictions": []
+            }, status=200)
+
+        confidence = result.get("confidence", 0.0)
+        margin = result.get("margin", 0.0)
+        raw_gesture = result.get("gesture")
+
+        confidence_threshold = 0.60
+        margin_threshold = 0.05
+
+        if confidence < confidence_threshold or margin < margin_threshold:
+            final_gesture = "Unknown"
+        else:
+            final_gesture = raw_gesture
+
+        return Response({
+            "success": True,
+            "gesture": final_gesture,
+            "raw_gesture": raw_gesture,
+            "confidence": round(confidence, 4),
+            "confidence_percent": round(confidence * 100, 2),
+            "margin": round(margin, 4),
+            "margin_percent": round(margin * 100, 2),
+            "threshold_percent": confidence_threshold * 100,
+            "margin_threshold_percent": margin_threshold * 100,
+            "valid_frames": result.get("valid_frames", 0),
+            "top_predictions": result.get("top_predictions", [])
+        })
+
+    except Exception as e:
+        return Response({
+            "success": False,
+            "error": str(e)
+        }, status=500)
+
+@api_view(["GET"])
+def dynamic_sample_counts(request):
+    data = []
+
+    gestures = Gesture.objects.filter(gesture_type="dynamic").order_by("name")
+
+    for gesture in gestures:
+        data.append({
+            "id": gesture.id,
+            "name": gesture.name,
+            "gesture_type": gesture.gesture_type,
+            "sample_count": DynamicDatasetSample.objects.filter(gesture=gesture).count()
+        })
+
+    return Response(data)
