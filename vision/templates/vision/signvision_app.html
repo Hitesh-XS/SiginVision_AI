@@ -485,6 +485,10 @@
     let currentCandidate = null;
     let stableCount = 0;
 
+    let liveStaticMode = false;
+    let liveStaticTimer = null;
+    let isStaticPredicting = false;
+
     function getCSRFToken() {
         let cookieValue = null;
         let cookies = document.cookie.split(";");
@@ -613,10 +617,16 @@
     }
 
     async function predictStaticOnce() {
+        if (isStaticPredicting) {
+            return;
+        }
+
         if (!video.videoWidth) {
             statusBox.innerHTML = "Status: Start camera first";
             return;
         }
+
+        isStaticPredicting = true;
 
         let blob = await captureBlob();
 
@@ -638,6 +648,8 @@
         } catch (error) {
             statusBox.innerHTML = "Status: Static request failed - " + error;
         }
+
+        isStaticPredicting = false;
     }
 
     function sleep(ms) {
@@ -789,7 +801,37 @@
     }
 
     function toggleLiveMode() {
-        statusBox.innerHTML = "Status: Live static mode will be connected in Step 5";
+        let modeSelect = document.getElementById("modeSelect");
+        let mode = modeSelect ? modeSelect.value : "static";
+
+        if (mode !== "static") {
+            statusBox.innerHTML = "Status: Live mode is only for Static Mode. Use Predict button for Dynamic Mode.";
+            return;
+        }
+
+        liveStaticMode = !liveStaticMode;
+
+        let liveBtn = document.getElementById("liveBtn");
+
+        if (liveStaticMode) {
+            liveStaticTimer = setInterval(() => {
+                predictStaticOnce();
+            }, 700);
+
+            liveBtn.innerHTML = "Stop Live Static Mode";
+            liveBtn.classList.remove("ghost");
+            liveBtn.classList.add("danger");
+
+            statusBox.innerHTML = "Status: Live static mode started";
+        } else {
+            clearInterval(liveStaticTimer);
+
+            liveBtn.innerHTML = "Start Live Static Mode";
+            liveBtn.classList.remove("danger");
+            liveBtn.classList.add("ghost");
+
+            statusBox.innerHTML = "Status: Live static mode stopped";
+        }
     }
 
     let modeSelect = document.getElementById("modeSelect");
@@ -800,8 +842,18 @@
             currentModeBox.innerHTML = modeLabel;
             cameraModeTag.innerHTML = modeLabel + " Mode";
 
+            if (liveStaticMode) {
+                liveStaticMode = false;
+                clearInterval(liveStaticTimer);
+
+                let liveBtn = document.getElementById("liveBtn");
+                liveBtn.innerHTML = "Start Live Static Mode";
+                liveBtn.classList.remove("danger");
+                liveBtn.classList.add("ghost");
+            }
+
             if (this.value === "static") {
-                statusBox.innerHTML = "Status: Static mode selected. Show one sign and click Predict.";
+                statusBox.innerHTML = "Status: Static mode selected. Show one sign or start live mode.";
             } else {
                 statusBox.innerHTML = "Status: Dynamic mode selected. Click Predict and perform full sign for 2 seconds.";
             }
