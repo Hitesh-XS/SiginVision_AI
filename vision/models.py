@@ -42,3 +42,19 @@ class DynamicDatasetSample(models.Model):
 
     def __str__(self):
         return f"{self.gesture.name} dynamic sample"
+
+
+class SentenceHistory(models.Model):
+    sentence = models.TextField()
+    mode=models.CharField(
+        max_length=20,
+        choices=[
+            ("static","Static"),
+            ("dynamic","Dynamic"),
+            ("mixed","Mixed")
+        ],
+        default="mixed"
+    )
+    created_at=models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return self.sentence[:50]

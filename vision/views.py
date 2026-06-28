@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import Gesture, DatasetSample, DynamicDatasetSample
+from .models import Gesture, DatasetSample, DynamicDatasetSample,SentenceHistory
 from .serializers import GestureSerializer
 from .services.hand_landmark_service import HandLandmarkService
 
@@ -276,3 +276,26 @@ def dynamic_sample_counts(request):
 def signvision_app_page(request):
     return render(request, "vision/signvision_app.html")
 
+@api_view(["POST"])
+def save_sentence(request):
+    sentence = request.data.get("sentence", "").strip()
+    mode = request.data.get("mode", "mixed")
+
+    if not sentence:
+        return Response(
+            {"success": False, "error": "sentence is required"},
+            status=400
+        )
+
+    saved = SentenceHistory.objects.create(
+        sentence=sentence,
+        mode=mode
+    )
+
+    return Response({
+        "success": True,
+        "id": saved.id,
+        "sentence": saved.sentence,
+        "mode": saved.mode,
+        "created_at": saved.created_at
+    })

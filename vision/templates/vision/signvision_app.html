@@ -430,6 +430,7 @@
                     <button onclick="backspaceSentence()" class="ghost">Backspace</button>
                     <button onclick="clearSentence()" class="danger">Clear</button>
                     <button onclick="speakSentence()">Speak</button>
+                    <button onclick="saveSentence()" class="success">Save Sentence</button>
                 </div>
 
                 <div class="meta">
@@ -798,6 +799,40 @@
 
         let utterance = new SpeechSynthesisUtterance(sentence);
         speechSynthesis.speak(utterance);
+    }
+
+    async function saveSentence() {
+        if (!sentence.trim()) {
+            statusBox.innerHTML = "Status: Sentence is empty";
+            return;
+        }
+
+        let modeSelect = document.getElementById("modeSelect");
+        let selectedMode = modeSelect ? modeSelect.value : "mixed";
+
+        let formData = new FormData();
+        formData.append("sentence", sentence.trim());
+        formData.append("mode", selectedMode);
+
+        try {
+            let response = await fetch("/api/vision/save-sentence/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: formData
+            });
+
+            let data = await response.json();
+
+            if (response.ok && data.success) {
+                statusBox.innerHTML = "Status: Sentence saved successfully";
+            } else {
+                statusBox.innerHTML = "Status: " + (data.error || "Could not save sentence");
+            }
+        } catch (error) {
+            statusBox.innerHTML = "Status: Save failed - " + error;
+        }
     }
 
     function toggleLiveMode() {
