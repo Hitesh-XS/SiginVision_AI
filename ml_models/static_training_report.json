@@ -4,56 +4,42 @@
     "classes": [
         "A",
         "B",
-        "C",
-        "D",
-        "W"
+        "C"
     ],
-    "total_samples": 1366,
-    "train_samples": 1092,
-    "test_samples": 274,
+    "total_samples": 900,
+    "train_samples": 720,
+    "test_samples": 180,
     "classification_report": {
         "A": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 56.0
+            "support": 60.0
         },
         "B": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 53.0
+            "support": 60.0
         },
         "C": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 59.0
-        },
-        "D": {
-            "precision": 1.0,
-            "recall": 1.0,
-            "f1-score": 1.0,
-            "support": 59.0
-        },
-        "W": {
-            "precision": 1.0,
-            "recall": 1.0,
-            "f1-score": 1.0,
-            "support": 47.0
+            "support": 60.0
         },
         "accuracy": 1.0,
         "macro avg": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 274.0
+            "support": 180.0
         },
         "weighted avg": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 274.0
+            "support": 180.0
         }
     }
 }
