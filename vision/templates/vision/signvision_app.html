@@ -640,6 +640,102 @@
         }
     }
 
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function addDynamicWordToSentence(word) {
+        if (!word || word === "Unknown") {
+            return;
+        }
+
+        if (sentence.length > 0 && !sentence.endsWith(" ")) {
+            sentence += " ";
+        }
+
+        sentence += word + " ";
+        updateSentenceUI();
+    }
+
+    function processDynamicPrediction(data) {
+        if (!data.success) {
+            statusBox.innerHTML = "Status: " + (data.error || "Dynamic prediction failed");
+            gestureBox.innerHTML = "-";
+            confidenceBox.innerHTML = "Confidence: -";
+            rawGestureBox.innerHTML = "Raw: -";
+            validFramesBox.innerHTML = data.valid_frames || "-";
+            landmarkCountBox.innerHTML = "-";
+            return;
+        }
+
+        let gesture = data.gesture;
+        let rawGesture = data.raw_gesture;
+
+        gestureBox.innerHTML = gesture || "-";
+        confidenceBox.innerHTML = "Confidence: " + data.confidence_percent + "%";
+        rawGestureBox.innerHTML = "Raw: " + rawGesture;
+        validFramesBox.innerHTML = data.valid_frames || "-";
+        landmarkCountBox.innerHTML = "-";
+
+        if (gesture === "Unknown") {
+            statusBox.innerHTML = "Status: Dynamic gesture unknown";
+            return;
+        }
+
+        addDynamicWordToSentence(gesture);
+        statusBox.innerHTML = "Status: Dynamic prediction successful";
+    }
+
+    async function predictDynamicOnce() {
+        if (!video.videoWidth) {
+            statusBox.innerHTML = "Status: Start camera first";
+            return;
+        }
+
+        let frameCount = 30;
+        let durationMs = 2000;
+        let delay = durationMs / frameCount;
+
+        let blobs = [];
+
+        statusBox.innerHTML = "Status: Get ready for dynamic sign...";
+
+        await sleep(500);
+
+        for (let i = 0; i < frameCount; i++) {
+            let blob = await captureBlob();
+            blobs.push(blob);
+
+            statusBox.innerHTML = `Status: Recording dynamic frame ${i + 1}/${frameCount}`;
+
+            await sleep(delay);
+        }
+
+        statusBox.innerHTML = "Status: Sending dynamic frames...";
+
+        let formData = new FormData();
+
+        for (let i = 0; i < blobs.length; i++) {
+            formData.append("frames", blobs[i], `frame_${i}.jpg`);
+        }
+
+        try {
+            let response = await fetch("/api/vision/predict-dynamic/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: formData
+            });
+
+            let data = await response.json();
+            processDynamicPrediction(data);
+
+        } catch (error) {
+            statusBox.innerHTML = "Status: Dynamic request failed - " + error;
+        }
+    }
+
     function runPrediction() {
         let modeSelect = document.getElementById("modeSelect");
         let mode = modeSelect ? modeSelect.value : "static";
@@ -647,7 +743,7 @@
         if (mode === "static") {
             predictStaticOnce();
         } else {
-            statusBox.innerHTML = "Status: Dynamic prediction will be connected in Step 4";
+            predictDynamicOnce();
         }
     }
 
@@ -703,6 +799,12 @@
             let modeLabel = this.value === "static" ? "Static" : "Dynamic";
             currentModeBox.innerHTML = modeLabel;
             cameraModeTag.innerHTML = modeLabel + " Mode";
+
+            if (this.value === "static") {
+                statusBox.innerHTML = "Status: Static mode selected. Show one sign and click Predict.";
+            } else {
+                statusBox.innerHTML = "Status: Dynamic mode selected. Click Predict and perform full sign for 2 seconds.";
+            }
         });
     }
 
