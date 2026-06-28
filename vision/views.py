@@ -272,3 +272,7 @@ def dynamic_sample_counts(request):
         })
 
     return Response(data)
+
+def signvision_app_page(request):
+    return render(request, "vision/signvision_app.html")
+

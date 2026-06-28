@@ -15,4 +15,5 @@ urlpatterns = [
     path("collect-sample/", views.collect_sample, name="collect_sample"),
     path("predict-static/", views.predict_static, name="predict_static"),
     path("predict-dynamic/", views.predict_dynamic, name="predict_dynamic"),
+    path("app/",views.signvision_app_page,name="signvision_app_page"),
 ]
