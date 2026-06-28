@@ -1,135 +1,296 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SignVision AI</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
-            background: #020617;
-            color: white;
-            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            font-family: Inter, Arial, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(124, 58, 237, 0.28), transparent 32%),
+                radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.22), transparent 30%),
+                #020617;
+            color: #e5e7eb;
         }
 
-        .container {
-            max-width: 1200px;
+        .page {
+            max-width: 1280px;
             margin: auto;
-            padding: 30px;
+            padding: 28px;
         }
 
-        h1 {
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 34px;
+            letter-spacing: -1px;
+        }
+
+        .brand span {
             color: #a78bfa;
-            margin-bottom: 20px;
         }
 
-        .layout {
+        .brand p {
+            margin: 8px 0 0;
+            color: #94a3b8;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            color: #cbd5e1;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 18px rgba(34, 197, 94, 0.8);
+        }
+
+        .grid {
             display: grid;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 1.35fr 0.9fr;
             gap: 24px;
         }
 
         .card {
-            background: #1e293b;
-            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.84);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 26px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(14px);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 20px 22px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 19px;
+        }
+
+        .card-body {
             padding: 22px;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .camera-wrap {
+            position: relative;
+            border-radius: 22px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid rgba(148, 163, 184, 0.18);
         }
 
         video {
             width: 100%;
-            border-radius: 16px;
-            background: black;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            display: block;
+            background: #000;
         }
 
         canvas {
             display: none;
         }
 
+        .camera-overlay {
+            position: absolute;
+            left: 16px;
+            top: 16px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 8px 11px;
+            border-radius: 999px;
+            background: rgba(2, 6, 23, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+
         button, select {
             width: 100%;
-            padding: 14px;
-            margin-top: 12px;
             border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            box-sizing: border-box;
+            border-radius: 16px;
+            padding: 14px 16px;
+            font-size: 15px;
+            font-weight: 700;
+            outline: none;
         }
 
         button {
-            background: #7c3aed;
             color: white;
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
             cursor: pointer;
+            transition: 0.2s ease;
         }
 
         button:hover {
-            background: #6d28d9;
+            transform: translateY(-1px);
+            filter: brightness(1.08);
         }
 
         select {
             background: #020617;
-            color: white;
-            border: 1px solid #475569;
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            grid-column: span 2;
         }
 
         .success {
-            background: #16a34a;
+            background: linear-gradient(135deg, #16a34a, #059669);
         }
 
         .danger {
-            background: #dc2626;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
         }
 
         .warning {
-            background: #f59e0b;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
         }
 
-        .result-box {
-            background: #020617;
+        .ghost {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 14px 16px;
             border-radius: 16px;
-            padding: 22px;
+            background: rgba(2, 6, 23, 0.72);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            font-size: 14px;
+        }
+
+        .prediction {
             text-align: center;
+            padding: 24px;
+            border-radius: 22px;
+            background:
+                linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(2, 6, 23, 0.85));
+            border: 1px solid rgba(148, 163, 184, 0.16);
             margin-bottom: 18px;
         }
 
+        .prediction-label {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
         .gesture {
-            font-size: 56px;
-            font-weight: bold;
+            min-height: 76px;
+            font-size: 58px;
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: -2px;
             color: #22c55e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             word-break: break-word;
         }
 
         .confidence {
-            font-size: 20px;
+            margin-top: 10px;
             color: #facc15;
+            font-weight: 700;
+        }
+
+        .raw {
             margin-top: 8px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .sentence-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 6px 0 12px;
+        }
+
+        .sentence-title h2 {
+            margin: 0;
+            font-size: 20px;
         }
 
         .sentence-box {
-            background: #020617;
-            border-radius: 16px;
+            min-height: 120px;
             padding: 18px;
-            min-height: 90px;
-            font-size: 30px;
-            font-weight: bold;
+            border-radius: 20px;
+            background: #020617;
+            border: 1px dashed rgba(56, 189, 248, 0.45);
             color: #38bdf8;
+            font-size: 30px;
+            font-weight: 800;
+            line-height: 1.35;
             word-break: break-word;
-            margin-bottom: 14px;
         }
 
-        .status {
-            background: #020617;
-            padding: 14px;
-            border-radius: 12px;
-            margin-top: 16px;
-            color: #cbd5e1;
+        .sentence-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .meta {
+            margin-top: 18px;
+            display: grid;
+            gap: 10px;
         }
 
         .info-row {
             display: flex;
             justify-content: space-between;
-            border-bottom: 1px solid #334155;
-            padding: 10px 0;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
         }
 
         .label {
@@ -137,98 +298,168 @@
         }
 
         .value {
-            font-weight: bold;
+            font-weight: 800;
+            color: #e2e8f0;
         }
 
-        .small {
+        #appendState {
+            color: #22c55e;
+        }
+
+        .hint {
+            margin-top: 16px;
             color: #94a3b8;
             font-size: 14px;
-            margin-top: 12px;
+            line-height: 1.6;
         }
 
-        @media (max-width: 850px) {
-            .layout {
+        .kbd {
+            color: #c4b5fd;
+            font-weight: 800;
+        }
+
+        @media (max-width: 950px) {
+            .grid {
                 grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .page {
+                padding: 18px;
+            }
+
+            .controls,
+            .sentence-actions {
+                grid-template-columns: 1fr;
+            }
+
+            select {
+                grid-column: span 1;
+            }
+
+            .gesture {
+                font-size: 46px;
+            }
+
+            .sentence-box {
+                font-size: 24px;
             }
         }
     </style>
 </head>
 
 <body>
+<div class="page">
+    <div class="header">
+        <div class="brand">
+            <h1>SignVision <span>AI</span></h1>
+            <p>Real-time static and dynamic sign recognition with sentence building.</p>
+        </div>
 
-<div class="container">
-    <h1>SignVision AI - Unified App</h1>
+        <div class="pill">
+            <span class="dot"></span>
+            Local Django ML App
+        </div>
+    </div>
 
-    <div class="layout">
-
+    <div class="grid">
         <div class="card">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="canvas"></canvas>
+            <div class="card-header">
+                <h2>Camera Input</h2>
+                <div class="tag">Webcam</div>
+            </div>
 
-            <button onclick="startCamera()">Start Camera</button>
+            <div class="card-body">
+                <div class="camera-wrap">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
 
-            <select id="modeSelect">
-                <option value="static">Static Mode - Letters</option>
-                <option value="dynamic">Dynamic Mode - Words</option>
-            </select>
+                    <div class="camera-overlay">
+                        <div class="tag">640 × 480</div>
+                        <div class="tag" id="cameraModeTag">Static Mode</div>
+                    </div>
+                </div>
 
-            <button onclick="runPrediction()" class="success">
-                Predict
-            </button>
+                <div class="controls">
+                    <button onclick="startCamera()">Start Camera</button>
 
-            <button onclick="toggleLiveMode()" id="liveBtn">
-                Start Live Static Mode
-            </button>
+                    <select id="modeSelect">
+                        <option value="static">Static Mode - Letters</option>
+                        <option value="dynamic">Dynamic Mode - Words</option>
+                    </select>
 
-            <div class="status" id="status">
-                Status: Waiting...
+                    <button onclick="runPrediction()" class="success">Predict</button>
+                    <button onclick="toggleLiveMode()" id="liveBtn" class="ghost">Start Live Static Mode</button>
+                </div>
+
+                <div class="status" id="status">
+                    Status: Waiting...
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="result-box">
-                <div>Current Prediction</div>
-                <div class="gesture" id="gesture">-</div>
-                <div class="confidence" id="confidence">Confidence: -</div>
-                <div class="small" id="rawGesture">Raw: -</div>
+            <div class="card-header">
+                <h2>Recognition Panel</h2>
+                <div class="tag">Output</div>
             </div>
 
-            <h2>Sentence</h2>
+            <div class="card-body">
+                <div class="prediction">
+                    <div class="prediction-label">Current Prediction</div>
+                    <div class="gesture" id="gesture">-</div>
+                    <div class="confidence" id="confidence">Confidence: -</div>
+                    <div class="raw" id="rawGesture">Raw: -</div>
+                </div>
 
-            <div class="sentence-box" id="sentenceBox">
-                &nbsp;
+                <div class="sentence-title">
+                    <h2>Sentence Builder</h2>
+                    <div class="tag">Text Output</div>
+                </div>
+
+                <div class="sentence-box" id="sentenceBox">&nbsp;</div>
+
+                <div class="sentence-actions">
+                    <button onclick="addSpace()" class="warning">Add Space</button>
+                    <button onclick="backspaceSentence()" class="ghost">Backspace</button>
+                    <button onclick="clearSentence()" class="danger">Clear</button>
+                    <button onclick="speakSentence()">Speak</button>
+                </div>
+
+                <div class="meta">
+                    <div class="info-row">
+                        <span class="label">Mode</span>
+                        <span class="value" id="currentMode">Static</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="label">Append State</span>
+                        <span class="value" id="appendState">Ready</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="label">Valid Frames</span>
+                        <span class="value" id="validFrames">-</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="label">Landmark Count</span>
+                        <span class="value" id="landmarkCount">-</span>
+                    </div>
+                </div>
+
+                <div class="hint">
+                    Static signs add letters once. Remove your hand before adding the same letter again.
+                    Dynamic mode will add full words like <span class="kbd">HELLO</span> and <span class="kbd">NO</span>.
+                </div>
             </div>
-
-            <button onclick="addSpace()" class="warning">Add Space</button>
-            <button onclick="backspaceSentence()">Backspace</button>
-            <button onclick="clearSentence()" class="danger">Clear Sentence</button>
-            <button onclick="speakSentence()">Speak Sentence</button>
-
-            <div class="info-row">
-                <span class="label">Mode</span>
-                <span class="value" id="currentMode">Static</span>
-            </div>
-
-            <div class="info-row">
-                <span class="label">Append State</span>
-                <span class="value" id="appendState">Ready</span>
-            </div>
-
-            <div class="info-row">
-                <span class="label">Valid Frames</span>
-                <span class="value" id="validFrames">-</span>
-            </div>
-
-            <div class="info-row">
-                <span class="label">Landmarks</span>
-                <span class="value" id="landmarkCount">-</span>
-            </div>
-
-            <p class="small">
-                Static mode adds letters. Dynamic mode adds full words like HELLO or NO.
-            </p>
         </div>
-
     </div>
 </div>
 
@@ -246,11 +477,42 @@
     let appendStateBox = document.getElementById("appendState");
     let validFramesBox = document.getElementById("validFrames");
     let landmarkCountBox = document.getElementById("landmarkCount");
+    let cameraModeTag = document.getElementById("cameraModeTag");
 
     let sentence = "";
 
+    let readyToAppend = true;
+    let currentCandidate = null;
+    let stableCount = 0;
+
+    function getCSRFToken() {
+        let cookieValue = null;
+        let cookies = document.cookie.split(";");
+
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+
+            if (cookie.startsWith("csrftoken=")) {
+                cookieValue = cookie.substring("csrftoken=".length);
+                break;
+            }
+        }
+
+        return cookieValue;
+    }
+
     function updateSentenceUI() {
         sentenceBox.innerHTML = sentence || "&nbsp;";
+    }
+
+    function updateAppendStateUI() {
+        if (readyToAppend) {
+            appendStateBox.innerHTML = "Ready";
+            appendStateBox.style.color = "#22c55e";
+        } else {
+            appendStateBox.innerHTML = "Locked until hand removed";
+            appendStateBox.style.color = "#f97316";
+        }
     }
 
     async function startCamera() {
@@ -270,6 +532,125 @@
         }
     }
 
+    function captureBlob() {
+        return new Promise(resolve => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                resolve(blob);
+            }, "image/jpeg", 0.9);
+        });
+    }
+
+    function addGestureToSentence(gesture) {
+        if (!readyToAppend) {
+            return;
+        }
+
+        if (!gesture || gesture === "Unknown") {
+            return;
+        }
+
+        sentence += gesture;
+        readyToAppend = false;
+
+        updateSentenceUI();
+        updateAppendStateUI();
+    }
+
+    function handleNoHandDetected() {
+        gestureBox.innerHTML = "-";
+        confidenceBox.innerHTML = "Confidence: -";
+        rawGestureBox.innerHTML = "Raw: -";
+        landmarkCountBox.innerHTML = "-";
+        validFramesBox.innerHTML = "-";
+
+        readyToAppend = true;
+        currentCandidate = null;
+        stableCount = 0;
+
+        statusBox.innerHTML = "Status: No hand detected. Ready for next sign.";
+        updateAppendStateUI();
+    }
+
+    function processStaticPrediction(data) {
+        if (data.hand_detected === false) {
+            handleNoHandDetected();
+            return;
+        }
+
+        if (!data.success) {
+            statusBox.innerHTML = "Status: " + (data.error || "Prediction failed");
+            return;
+        }
+
+        let gesture = data.gesture;
+        let rawGesture = data.raw_gesture;
+
+        gestureBox.innerHTML = gesture || "-";
+        confidenceBox.innerHTML = "Confidence: " + data.confidence_percent + "%";
+        rawGestureBox.innerHTML = "Raw: " + rawGesture;
+        landmarkCountBox.innerHTML = data.landmark_count || "-";
+        validFramesBox.innerHTML = "-";
+
+        if (gesture === "Unknown") {
+            statusBox.innerHTML = "Status: Unknown gesture";
+            currentCandidate = null;
+            stableCount = 0;
+            return;
+        }
+
+        currentCandidate = gesture;
+        stableCount = 1;
+
+        addGestureToSentence(gesture);
+
+        statusBox.innerHTML = "Status: Static prediction successful";
+    }
+
+    async function predictStaticOnce() {
+        if (!video.videoWidth) {
+            statusBox.innerHTML = "Status: Start camera first";
+            return;
+        }
+
+        let blob = await captureBlob();
+
+        let formData = new FormData();
+        formData.append("image", blob, "frame.jpg");
+
+        try {
+            let response = await fetch("/api/vision/predict-static/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: formData
+            });
+
+            let data = await response.json();
+            processStaticPrediction(data);
+
+        } catch (error) {
+            statusBox.innerHTML = "Status: Static request failed - " + error;
+        }
+    }
+
+    function runPrediction() {
+        let modeSelect = document.getElementById("modeSelect");
+        let mode = modeSelect ? modeSelect.value : "static";
+
+        if (mode === "static") {
+            predictStaticOnce();
+        } else {
+            statusBox.innerHTML = "Status: Dynamic prediction will be connected in Step 4";
+        }
+    }
+
     function addSpace() {
         if (sentence.length > 0 && !sentence.endsWith(" ")) {
             sentence += " ";
@@ -284,7 +665,21 @@
 
     function clearSentence() {
         sentence = "";
+
+        readyToAppend = true;
+        currentCandidate = null;
+        stableCount = 0;
+
         updateSentenceUI();
+        updateAppendStateUI();
+
+        gestureBox.innerHTML = "-";
+        confidenceBox.innerHTML = "Confidence: -";
+        rawGestureBox.innerHTML = "Raw: -";
+        landmarkCountBox.innerHTML = "-";
+        validFramesBox.innerHTML = "-";
+
+        statusBox.innerHTML = "Status: Sentence cleared";
     }
 
     function speakSentence() {
@@ -297,20 +692,22 @@
         speechSynthesis.speak(utterance);
     }
 
-    function runPrediction() {
-        statusBox.innerHTML = "Status: Prediction logic will be added in Step 3";
-    }
-
     function toggleLiveMode() {
-        statusBox.innerHTML = "Status: Live mode logic will be added in Step 4";
+        statusBox.innerHTML = "Status: Live static mode will be connected in Step 5";
     }
 
-    document.getElementById("modeSelect").addEventListener("change", function () {
-        currentModeBox.innerHTML = this.value === "static" ? "Static" : "Dynamic";
-    });
+    let modeSelect = document.getElementById("modeSelect");
+
+    if (modeSelect) {
+        modeSelect.addEventListener("change", function () {
+            let modeLabel = this.value === "static" ? "Static" : "Dynamic";
+            currentModeBox.innerHTML = modeLabel;
+            cameraModeTag.innerHTML = modeLabel + " Mode";
+        });
+    }
 
     updateSentenceUI();
+    updateAppendStateUI();
 </script>
-
 </body>
 </html>
