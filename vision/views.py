@@ -91,36 +91,41 @@ def predict_static(request):
     image = request.FILES.get("image")
 
     if not image:
-        return Response(
-            {
-                "success": False,
-                "error": "image is required"
-            },
-            status=400
-        )
+        return Response({
+            "success": False,
+            "hand_detected": False,
+            "error": "image is required",
+            "gesture": None,
+            "raw_gesture": None,
+            "confidence": 0.0,
+            "confidence_percent": 0.0,
+            "threshold_percent": 80.0,
+            "landmark_count": 0,
+            "top_predictions": []
+        }, status=400)
 
     try:
         service = StaticPredictionService()
         result = service.predict_from_image(image)
 
+        threshold = 0.80
+
         if not result.get("success"):
-            return Response(
-                {
-                    "success": False,
-                    "error": result.get("error", "Prediction failed"),
-                    "gesture": None,
-                    "raw_gesture": None,
-                    "confidence": 0.0,
-                    "confidence_percent": 0.0,
-                    "landmark_count": 0
-                },
-                status=400
-            )
+            return Response({
+                "success": False,
+                "hand_detected": False,
+                "error": result.get("error", "No hand detected"),
+                "gesture": None,
+                "raw_gesture": None,
+                "confidence": 0.0,
+                "confidence_percent": 0.0,
+                "threshold_percent": threshold * 100,
+                "landmark_count": 0,
+                "top_predictions": []
+            }, status=200)
 
         confidence = result.get("confidence", 0.0)
         raw_gesture = result.get("gesture")
-
-        threshold = 0.70
 
         if confidence < threshold:
             final_gesture = "Unknown"
@@ -129,6 +134,7 @@ def predict_static(request):
 
         return Response({
             "success": True,
+            "hand_detected": True,
             "gesture": final_gesture,
             "raw_gesture": raw_gesture,
             "confidence": round(confidence, 4),
@@ -139,13 +145,18 @@ def predict_static(request):
         })
 
     except Exception as e:
-        return Response(
-            {
-                "success": False,
-                "error": str(e)
-            },
-            status=500
-        )
+        return Response({
+            "success": False,
+            "hand_detected": False,
+            "error": str(e),
+            "gesture": None,
+            "raw_gesture": None,
+            "confidence": 0.0,
+            "confidence_percent": 0.0,
+            "threshold_percent": 80.0,
+            "landmark_count": 0,
+            "top_predictions": []
+        }, status=500)
 
 def predict_page(request):
     return render(request, "vision/predict.html")

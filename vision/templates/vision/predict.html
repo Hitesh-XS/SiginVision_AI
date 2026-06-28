@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SignVision AI - Live Prediction</title>
+    <title>SignVision AI - Sentence Mode</title>
     <style>
         body {
             margin: 0;
@@ -11,7 +11,7 @@
         }
 
         .container {
-            max-width: 1050px;
+            max-width: 1150px;
             margin: auto;
             padding: 30px;
         }
@@ -69,6 +69,10 @@
             background: #16a34a;
         }
 
+        .warning {
+            background: #f59e0b;
+        }
+
         .result-box {
             text-align: center;
             background: #020617;
@@ -78,7 +82,7 @@
         }
 
         .gesture {
-            font-size: 76px;
+            font-size: 72px;
             font-weight: bold;
             color: #22c55e;
         }
@@ -88,9 +92,21 @@
         }
 
         .confidence {
-            font-size: 24px;
+            font-size: 22px;
             color: #facc15;
             margin-top: 10px;
+        }
+
+        .sentence-box {
+            background: #020617;
+            padding: 18px;
+            border-radius: 14px;
+            min-height: 80px;
+            font-size: 32px;
+            font-weight: bold;
+            color: #38bdf8;
+            word-break: break-word;
+            margin-bottom: 14px;
         }
 
         .small {
@@ -122,7 +138,15 @@
             font-weight: bold;
         }
 
-        @media (max-width: 800px) {
+        .ready {
+            color: #22c55e;
+        }
+
+        .locked {
+            color: #f97316;
+        }
+
+        @media (max-width: 850px) {
             .layout {
                 grid-template-columns: 1fr;
             }
@@ -132,7 +156,7 @@
 <body>
 
 <div class="container">
-    <h1>SignVision AI - Live Static Gesture Prediction</h1>
+    <h1>SignVision AI - Sentence Builder</h1>
 
     <div class="layout">
         <div class="card">
@@ -150,15 +174,27 @@
 
         <div class="card">
             <div class="result-box">
-                <div>Prediction</div>
+                <div>Current Prediction</div>
                 <div class="gesture" id="gesture">-</div>
                 <div class="confidence" id="confidence">Confidence: -</div>
                 <div class="small" id="rawGesture">Raw: -</div>
             </div>
 
+            <h2>Sentence</h2>
+            <div class="sentence-box" id="sentenceBox"></div>
+
+            <button onclick="addSpace()" class="warning">Add Space</button>
+            <button onclick="backspaceSentence()">Backspace</button>
+            <button onclick="clearSentence()" class="danger">Clear Sentence</button>
+
             <div class="info-row">
-                <span class="label">Threshold</span>
-                <span class="value" id="threshold">70%</span>
+                <span class="label">Append State</span>
+                <span class="value ready" id="appendState">Ready</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Stable Count</span>
+                <span class="value" id="stableCount">0</span>
             </div>
 
             <div class="info-row">
@@ -167,17 +203,12 @@
             </div>
 
             <div class="info-row">
-                <span class="label">Mode</span>
-                <span class="value">Static ASL</span>
-            </div>
-
-            <div class="info-row">
-                <span class="label">Classes</span>
-                <span class="value">A/B/C/D/W/Z</span>
+                <span class="label">Threshold</span>
+                <span class="value" id="threshold">80%</span>
             </div>
 
             <p class="small">
-                Show only the gestures your model was trained on. If confidence is low, result becomes Unknown.
+                A sign is added only once. Remove your hand, then show the next sign.
             </p>
         </div>
     </div>
@@ -194,10 +225,22 @@
     let landmarkCountBox = document.getElementById("landmarkCount");
     let thresholdBox = document.getElementById("threshold");
     let liveBtn = document.getElementById("liveBtn");
+    let sentenceBox = document.getElementById("sentenceBox");
+    let appendStateBox = document.getElementById("appendState");
+    let stableCountBox = document.getElementById("stableCount");
 
     let live = false;
     let liveTimer = null;
     let isPredicting = false;
+
+    let sentence = "";
+
+    let readyToAppend = true;
+    let lastStableGesture = null;
+    let currentCandidate = null;
+    let stableCount = 0;
+
+    let requiredStableFrames = 3;
 
     function getCSRFToken() {
         let cookieValue = null;
@@ -213,6 +256,124 @@
         }
 
         return cookieValue;
+    }
+
+    function updateSentenceUI() {
+        sentenceBox.innerHTML = sentence || "&nbsp;";
+    }
+
+    function updateAppendStateUI() {
+        if (readyToAppend) {
+            appendStateBox.innerHTML = "Ready";
+            appendStateBox.classList.remove("locked");
+            appendStateBox.classList.add("ready");
+        } else {
+            appendStateBox.innerHTML = "Locked until hand removed";
+            appendStateBox.classList.remove("ready");
+            appendStateBox.classList.add("locked");
+        }
+
+        stableCountBox.innerHTML = stableCount;
+    }
+
+    function addSpace() {
+        if (sentence.length === 0) {
+            return;
+        }
+
+        if (!sentence.endsWith(" ")) {
+            sentence += " ";
+            updateSentenceUI();
+        }
+    }
+
+    function backspaceSentence() {
+        sentence = sentence.slice(0, -1);
+        updateSentenceUI();
+    }
+
+    function clearSentence() {
+        sentence = "";
+        readyToAppend = true;
+        lastStableGesture = null;
+        currentCandidate = null;
+        stableCount = 0;
+
+        updateSentenceUI();
+        updateAppendStateUI();
+    }
+
+    function appendGestureOnce(gesture) {
+        if (!readyToAppend) {
+            return;
+        }
+
+        if (!gesture || gesture === "Unknown") {
+            return;
+        }
+
+        sentence += gesture;
+        lastStableGesture = gesture;
+        readyToAppend = false;
+
+        updateSentenceUI();
+        updateAppendStateUI();
+    }
+
+    function handleNoHandDetected() {
+        gestureBox.innerHTML = "-";
+        confidenceBox.innerHTML = "Confidence: -";
+        rawGestureBox.innerHTML = "Raw: -";
+        landmarkCountBox.innerHTML = "-";
+
+        gestureBox.classList.remove("unknown");
+
+        readyToAppend = true;
+        currentCandidate = null;
+        stableCount = 0;
+
+        statusBox.innerHTML = "Status: No hand detected. Ready for next sign.";
+        updateAppendStateUI();
+    }
+
+    function processPrediction(data) {
+        if (!data.hand_detected) {
+            handleNoHandDetected();
+            return;
+        }
+
+        let gesture = data.gesture;
+        let rawGesture = data.raw_gesture;
+
+        gestureBox.innerHTML = gesture;
+        confidenceBox.innerHTML = "Confidence: " + data.confidence_percent + "%";
+        rawGestureBox.innerHTML = "Raw: " + rawGesture;
+        landmarkCountBox.innerHTML = data.landmark_count;
+        thresholdBox.innerHTML = data.threshold_percent + "%";
+
+        if (gesture === "Unknown") {
+            gestureBox.classList.add("unknown");
+            currentCandidate = null;
+            stableCount = 0;
+            updateAppendStateUI();
+            return;
+        }
+
+        gestureBox.classList.remove("unknown");
+
+        if (currentCandidate === gesture) {
+            stableCount++;
+        } else {
+            currentCandidate = gesture;
+            stableCount = 1;
+        }
+
+        if (stableCount >= requiredStableFrames) {
+            appendGestureOnce(gesture);
+        }
+
+        statusBox.innerHTML = "Status: Prediction successful";
+        updateAppendStateUI();
     }
 
     async function startCamera() {
@@ -265,26 +426,10 @@
 
                 let data = await response.json();
 
-                if (response.ok && data.success) {
-                    gestureBox.innerHTML = data.gesture;
-                    confidenceBox.innerHTML = "Confidence: " + data.confidence_percent + "%";
-                    rawGestureBox.innerHTML = "Raw: " + data.raw_gesture;
-                    landmarkCountBox.innerHTML = data.landmark_count;
-                    thresholdBox.innerHTML = data.threshold_percent + "%";
-
-                    if (data.gesture === "Unknown") {
-                        gestureBox.classList.add("unknown");
-                    } else {
-                        gestureBox.classList.remove("unknown");
-                    }
-
-                    statusBox.innerHTML = "Status: Prediction successful";
+                if (response.ok) {
+                    processPrediction(data);
                 } else {
                     statusBox.innerHTML = "Status: " + data.error;
-                    gestureBox.innerHTML = "-";
-                    confidenceBox.innerHTML = "Confidence: -";
-                    rawGestureBox.innerHTML = "Raw: -";
-                    landmarkCountBox.innerHTML = "-";
                 }
             } catch (error) {
                 statusBox.innerHTML = "Status: Request failed - " + error;
@@ -300,7 +445,7 @@
         if (live) {
             liveTimer = setInterval(() => {
                 predictOnce();
-            }, 700);
+            }, 500);
 
             liveBtn.innerHTML = "Stop Live Prediction";
             liveBtn.classList.add("danger");
@@ -313,6 +458,9 @@
             statusBox.innerHTML = "Status: Live prediction stopped";
         }
     }
+
+    updateSentenceUI();
+    updateAppendStateUI();
 </script>
 
 </body>
