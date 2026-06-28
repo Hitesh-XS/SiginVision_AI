@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SignVision AI</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #020617;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #a78bfa;
+            margin-bottom: 20px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+        }
+
+        video {
+            width: 100%;
+            border-radius: 16px;
+            background: black;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        button, select {
+            width: 100%;
+            padding: 14px;
+            margin-top: 12px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #7c3aed;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #6d28d9;
+        }
+
+        select {
+            background: #020617;
+            color: white;
+            border: 1px solid #475569;
+        }
+
+        .success {
+            background: #16a34a;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .warning {
+            background: #f59e0b;
+        }
+
+        .result-box {
+            background: #020617;
+            border-radius: 16px;
+            padding: 22px;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .gesture {
+            font-size: 56px;
+            font-weight: bold;
+            color: #22c55e;
+            word-break: break-word;
+        }
+
+        .confidence {
+            font-size: 20px;
+            color: #facc15;
+            margin-top: 8px;
+        }
+
+        .sentence-box {
+            background: #020617;
+            border-radius: 16px;
+            padding: 18px;
+            min-height: 90px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #38bdf8;
+            word-break: break-word;
+            margin-bottom: 14px;
+        }
+
+        .status {
+            background: #020617;
+            padding: 14px;
+            border-radius: 12px;
+            margin-top: 16px;
+            color: #cbd5e1;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #334155;
+            padding: 10px 0;
+        }
+
+        .label {
+            color: #94a3b8;
+        }
+
+        .value {
+            font-weight: bold;
+        }
+
+        .small {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        @media (max-width: 850px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>SignVision AI - Unified App</h1>
+
+    <div class="layout">
+
+        <div class="card">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+
+            <button onclick="startCamera()">Start Camera</button>
+
+            <select id="modeSelect">
+                <option value="static">Static Mode - Letters</option>
+                <option value="dynamic">Dynamic Mode - Words</option>
+            </select>
+
+            <button onclick="runPrediction()" class="success">
+                Predict
+            </button>
+
+            <button onclick="toggleLiveMode()" id="liveBtn">
+                Start Live Static Mode
+            </button>
+
+            <div class="status" id="status">
+                Status: Waiting...
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="result-box">
+                <div>Current Prediction</div>
+                <div class="gesture" id="gesture">-</div>
+                <div class="confidence" id="confidence">Confidence: -</div>
+                <div class="small" id="rawGesture">Raw: -</div>
+            </div>
+
+            <h2>Sentence</h2>
+
+            <div class="sentence-box" id="sentenceBox">
+                &nbsp;
+            </div>
+
+            <button onclick="addSpace()" class="warning">Add Space</button>
+            <button onclick="backspaceSentence()">Backspace</button>
+            <button onclick="clearSentence()" class="danger">Clear Sentence</button>
+            <button onclick="speakSentence()">Speak Sentence</button>
+
+            <div class="info-row">
+                <span class="label">Mode</span>
+                <span class="value" id="currentMode">Static</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Append State</span>
+                <span class="value" id="appendState">Ready</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Valid Frames</span>
+                <span class="value" id="validFrames">-</span>
+            </div>
+
+            <div class="info-row">
+                <span class="label">Landmarks</span>
+                <span class="value" id="landmarkCount">-</span>
+            </div>
+
+            <p class="small">
+                Static mode adds letters. Dynamic mode adds full words like HELLO or NO.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let video = document.getElementById("video");
+    let canvas = document.getElementById("canvas");
+
+    let statusBox = document.getElementById("status");
+    let gestureBox = document.getElementById("gesture");
+    let confidenceBox = document.getElementById("confidence");
+    let rawGestureBox = document.getElementById("rawGesture");
+    let sentenceBox = document.getElementById("sentenceBox");
+
+    let currentModeBox = document.getElementById("currentMode");
+    let appendStateBox = document.getElementById("appendState");
+    let validFramesBox = document.getElementById("validFrames");
+    let landmarkCountBox = document.getElementById("landmarkCount");
+
+    let sentence = "";
+
+    function updateSentenceUI() {
+        sentenceBox.innerHTML = sentence || "&nbsp;";
+    }
+
+    async function startCamera() {
+        try {
+            let stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: 640,
+                    height: 480
+                },
+                audio: false
+            });
+
+            video.srcObject = stream;
+            statusBox.innerHTML = "Status: Camera started";
+        } catch (error) {
+            statusBox.innerHTML = "Status: Camera error - " + error;
+        }
+    }
+
+    function addSpace() {
+        if (sentence.length > 0 && !sentence.endsWith(" ")) {
+            sentence += " ";
+            updateSentenceUI();
+        }
+    }
+
+    function backspaceSentence() {
+        sentence = sentence.slice(0, -1);
+        updateSentenceUI();
+    }
+
+    function clearSentence() {
+        sentence = "";
+        updateSentenceUI();
+    }
+
+    function speakSentence() {
+        if (!sentence.trim()) {
+            statusBox.innerHTML = "Status: Sentence is empty";
+            return;
+        }
+
+        let utterance = new SpeechSynthesisUtterance(sentence);
+        speechSynthesis.speak(utterance);
+    }
+
+    function runPrediction() {
+        statusBox.innerHTML = "Status: Prediction logic will be added in Step 3";
+    }
+
+    function toggleLiveMode() {
+        statusBox.innerHTML = "Status: Live mode logic will be added in Step 4";
+    }
+
+    document.getElementById("modeSelect").addEventListener("change", function () {
+        currentModeBox.innerHTML = this.value === "static" ? "Static" : "Dynamic";
+    });
+
+    updateSentenceUI();
+</script>
+
+</body>
+</html>
