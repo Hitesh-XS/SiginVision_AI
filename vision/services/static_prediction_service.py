@@ -33,13 +33,7 @@ class StaticPredictionService:
         self.hand_service = HandLandmarkService()
 
     def predict_from_image(self, image_file):
-        hand_data = self.hand_service.extract_landmarks_with_quality_from_image(image_file) \
-            if hasattr(self.hand_service, "extract_landmarks_with_quality_from_image") \
-            else None
-
-        if hand_data is None:
-            image_file.seek(0)
-            hand_data = self._extract_quality_from_image_file(image_file)
+        hand_data = self.hand_service.extract_landmarks_with_quality_from_image(image_file)
 
         if not hand_data["success"]:
             return {
@@ -48,6 +42,9 @@ class StaticPredictionService:
                 "gesture": None,
                 "confidence": 0.0,
                 "confidence_percent": 0.0,
+                "second_confidence": 0.0,
+                "margin": 0.0,
+                "margin_percent": 0.0,
                 "landmark_count": 0,
                 "top_predictions": [],
                 "hand_quality": hand_data

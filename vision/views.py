@@ -128,8 +128,8 @@ def predict_static(request):
         margin = result.get("margin", 0.0)
         raw_gesture = result.get("gesture")
 
-        confidence_threshold = 0.85
-        margin_threshold = 0.20
+        confidence_threshold = 0.60
+        margin_threshold = 0.05
 
         if confidence < confidence_threshold or margin < margin_threshold:
             final_gesture = "Unknown"
