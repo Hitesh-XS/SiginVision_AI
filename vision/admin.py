@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-# Register your models here.
+
 from .models import Gesture,DatasetSample,PredictionHistory,DynamicDatasetSample,SentenceHistory
 
 admin.site.register(Gesture)
