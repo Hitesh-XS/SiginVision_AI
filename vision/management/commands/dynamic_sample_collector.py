@@ -1,3 +1,32 @@
+"""
+  Pipeline of this code 
+  User performs HELLO
+          │
+          ▼
+ Webcam captures video
+          │
+          ▼
+ MediaPipe detects 21 hand landmarks
+          │
+          ▼
+ Convert each frame → 63 landmark values
+          │
+          ▼
+ Collect 30 valid frames
+          │
+          ▼
+ One sample = 30 × 63 sequence
+          │
+          ▼
+ Save to DynamicDatasetSample
+          │
+          ▼
+ Repeat until the desired number of samples is collected
+          │
+          ▼
+ Use the collected sequences to train the dynamic gesture recognition model (e.g., an LSTM).
+"""
+
 import time
 
 import cv2
