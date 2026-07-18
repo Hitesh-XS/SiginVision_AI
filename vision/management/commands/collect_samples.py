@@ -1,5 +1,4 @@
 import time
-
 import cv2
 from django.core.management.base import BaseCommand
 
