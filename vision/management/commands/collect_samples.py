@@ -7,7 +7,7 @@ from vision.services.hand_landmark_service import HandLandmarkService
 
 
 class Command(BaseCommand):
-    help = "Collect custom gesture samples from webcam and save MediaPipe landmarks into DB"
+    help = "Collect custom gesture samples from webcam and save MediaPipe landmarks into DataBase so we can train it later make sure at least two sample are collected"
 
     def add_arguments(self, parser):
         parser.add_argument(
