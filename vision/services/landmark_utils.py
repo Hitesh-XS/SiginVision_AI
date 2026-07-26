@@ -1,5 +1,3 @@
-import math
-
 
 def normalize_landmarks(landmarks):
     points = []
