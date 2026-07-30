@@ -1,5 +1,30 @@
+''''
+Pipline of this static train
+Read command options
+        ↓
+Load samples from database
+        ↓
+Validate 63 landmark values
+        ↓
+Normalize landmarks
+        ↓
+Encode gesture names
+        ↓
+Split train and test data
+        ↓
+Build dense neural network
+        ↓
+Train using training and validation data
+        ↓
+Evaluate using test data
+        ↓
+Save model, labels, and report
+
+'''
+
+
 import json
-import os
+
 from pathlib import Path
 
 import numpy as np
