@@ -1,4 +1,5 @@
 ''''
+Pipline of this static train
 Read command options
         ↓
 Load samples from database
