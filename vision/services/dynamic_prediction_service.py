@@ -1,10 +1,8 @@
 import json
 from pathlib import Path
-
 import numpy as np
 import tensorflow as tf
 from django.conf import settings
-
 from vision.services.hand_landmark_service import HandLandmarkService
 from vision.services.landmark_utils import normalize_landmark_sequence
 
