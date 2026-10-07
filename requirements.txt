@@ -1,3 +1,4 @@
+#packages 
 django
 djangorestframework
 mediapipe==0.10.21
