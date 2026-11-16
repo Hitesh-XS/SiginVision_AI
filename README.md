@@ -1,4 +1,4 @@
-# SignVision AI 🤟
+# SignVision AI 
 
 ### AI-Powered Sign Language Recognition Using Deep Learning
 
