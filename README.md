@@ -166,6 +166,7 @@ The extracted landmarks are normalized and passed to one of two TensorFlow model
 
 Django's database layer stores application data, including saved sentence history. The trained model files and label maps are stored separately in the `ml_models` directory.
 
+
 ### Overall architecture
 
     Browser / Webcam
